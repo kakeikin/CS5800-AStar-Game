@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Algorithm Layer – Unit Tests</title>
+<style>
+  body { background: #0e0e18; color: #ccc; font-family: monospace; padding: 24px; }
+  h1   { color: #ffd700; margin-bottom: 4px; }
+  h2   { color: #88aaff; margin: 20px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+  .pass { color: #50ff90; }
+  .fail { color: #ff5050; font-weight: bold; }
+  .info { color: #888; margin: 2px 0; }
+  pre  { background: #1a1a2e; padding: 12px; border-radius: 6px; overflow-x: auto;
+         font-size: 12px; line-height: 1.5; }
+  #summary { margin-top: 24px; padding: 12px; border-radius: 8px;
+             font-size: 16px; font-weight: bold; }
+  .ok  { background: #0a2a0a; color: #50ff90; border: 1px solid #50ff90; }
+  .err { background: #2a0a0a; color: #ff5050; border: 1px solid #ff5050; }
+</style>
+</head>
+<body>
+<h1>🧪 Algorithm Layer – Unit Tests</h1>
+<p class="info">Open DevTools console for full detail. Results appear below.</p>
+<div id="output"></div>
+<div id="summary"></div>
+
+<script type="module">
+import { posKey, keyToPos, seededRng, choice, MinHeap } from './src/utils.js';
+import { generateSquareMaze, generateHexMaze }           from './src/maze/generator.js';
+import { SquareGrid }                                     from './src/maze/squareGrid.js';
+import { HexGrid }                                        from './src/maze/hexGrid.js';
+import { Dijkstra }                                       from './src/algorithms/dijkstra.js';
+import { AStarManhattan, AStarEuclidean, AStarHex }       from './src/algorithms/astar.js';
+
+// ── Mini test runner ─────────────────────────────────────────────────────────
+
+const out = document.getElementById('output');
+let passed = 0, failed = 0;
+
+function section(title) {
+    out.innerHTML += `<h2>${title}</h2>`;
+}
+
+function assert(condition, label, detail = '') {
+    if (condition) {
+        out.innerHTML += `<div class="pass">  ✓ ${label}</div>`;
+        passed++;
+    } else {
+        out.innerHTML += `<div class="fail">  ✗ ${label}${detail ? ' — ' + detail : ''}</div>`;
+        failed++;
+        console.error(`FAIL: ${label}`, detail);
+    }
+}
+
+function info(msg) {
+    out.innerHTML += `<div class="info">    ${msg}</div>`;
+}
+
+function pre(obj) {
+    out.innerHTML += `<pre>${JSON.stringify(obj, null, 2)}</pre>`;
+}
+
+// ── 1. Utilities ─────────────────────────────────────────────────────────────
+
+section('1. Utilities');
+
+assert(posKey(3, 7) === '3,7',   'posKey encodes correctly');
+const decoded = keyToPos('5,2');
+assert(decoded[0] === 5 && decoded[1] === 2, 'keyToPos decodes correctly');
+
+// MinHeap
+const heap = new MinHeap();
+heap.push([5, 'e']); heap.push([1, 'a']); heap.push([3, 'c']);
+heap.push([2, 'b']); heap.push([4, 'd']);
+const order = [];
+while (heap.size > 0) order.push(heap.pop()[0]);
+assert(JSON.stringify(order) === JSON.stringify([1,2,3,4,5]),
+       'MinHeap pops in ascending priority order', order);
+
+// Seeded RNG determinism
+const rng1 = seededRng(42); const s1 = [rng1(), rng1(), rng1()];
+const rng2 = seededRng(42); const s2 = [rng2(), rng2(), rng2()];
+assert(JSON.stringify(s1) === JSON.stringify(s2), 'seededRng is deterministic for same seed');
+
+// ── 2. Maze generation (square) ──────────────────────────────────────────────
+
+section('2. Square Maze Generation');
+
+const sqPassages = generateSquareMaze(10, 10, 42);
+assert(sqPassages.size === 100,              'Square maze has 100 cells');
+
+// Perfect maze: exactly 99 passages (spanning tree → cols*rows - 1 edges)
+let edgeCount = 0;
+for (const nbrs of sqPassages.values()) edgeCount += nbrs.size;
+assert(edgeCount / 2 === 99, `Perfect maze has exactly 99 undirected edges (got ${edgeCount/2})`);
+
+// Bidirectional
+let bidir = true;
+for (const [key, nbrs] of sqPassages) {
+    for (const nbr of nbrs) {
+        if (!(sqPassages.get(nbr) || new Set()).has(key)) { bidir = false; break; }
+    }
+}
+assert(bidir, 'All square passages are bidirectional');
+
+// Seeded reproducibility
+const sqP2 = generateSquareMaze(10, 10, 42);
+let sameA = true;
+for (const [k, v] of sqPassages) {
+    const v2 = sqP2.get(k);
+    if (!v2 || v.size !== v2.size) { sameA = false; break; }
+    for (const n of v) if (!v2.has(n)) { sameA = false; break; }
+}
+assert(sameA, 'Same seed produces identical square mazes');
+
+// ── 3. Maze generation (hex) ─────────────────────────────────────────────────
+
+section('3. Hex Maze Generation');
+
+const hexPassages = generateHexMaze(10, 10, 99);
+assert(hexPassages.size === 100, 'Hex maze has 100 cells');
+let hexEdges = 0;
+for (const nbrs of hexPassages.values()) hexEdges += nbrs.size;
+assert(hexEdges / 2 === 99, `Perfect hex maze has exactly 99 edges (got ${hexEdges/2})`);
+
+// ── 4. SquareGrid ────────────────────────────────────────────────────────────
+
+section('4. SquareGrid');
+
+const grid = new SquareGrid(sqPassages);
+const start = posKey(0, 9), end = posKey(9, 0);
+
+assert(grid.cells().length === 100, 'cells() returns all 100 cells');
+
+const nbrs = grid.getNeighborsWithCost(start);
+assert(nbrs.length > 0, `Start cell has neighbours (${nbrs.length})`);
+for (const [nbr, cost] of nbrs) {
+    assert(cost === 1, `Edge cost defaults to 1 (got ${cost})`);
+    break; // just check one
+}
+
+// Weighted grid
+const weights = new Map([[posKey(1, 9), 9]]);  // entering (1,9) costs 10 total
+const wGrid = new SquareGrid(sqPassages, 10, 10, weights);
+const wNbrs = wGrid.getNeighborsWithCost(start);
+const heavy = wNbrs.find(([k]) => k === posKey(1, 9));
+if (heavy) assert(heavy[1] === 10, `Weighted cell costs 10 (got ${heavy[1]})`);
+
+// BFS distance
+const dists = grid.bfsDistance(start);
+assert(dists.has(end), 'BFS reaches top-right corner');
+info(`BFS steps from (0,9) to (9,0): ${dists.get(end)}`);
+
+// ── 5. HexGrid ───────────────────────────────────────────────────────────────
+
+section('5. HexGrid');
+
+const hexGrid = new HexGrid(hexPassages);
+assert(hexGrid.cells().length === 100, 'HexGrid has 100 cells');
+
+const hexNbrs = hexGrid.allNeighbours(posKey(5, 5));
+assert(hexNbrs.length <= 6, `allNeighbours returns ≤ 6 cells (interior got ${hexNbrs.length})`);
+const cornerNbrs = hexGrid.allNeighbours(posKey(0, 0));
+assert(cornerNbrs.length <= 3, `Corner cell has ≤ 3 geometric neighbours (got ${cornerNbrs.length})`);
+
+// ── 6. Dijkstra ──────────────────────────────────────────────────────────────
+
+section('6. Dijkstra');
+
+const dijkstra = new Dijkstra();
+assert(dijkstra.name === 'Dijkstra', 'name property');
+
+const { path: dPath, visitedOrder: dVisited, costMap: dCost } = dijkstra.findPath(grid, start, end);
+assert(dPath.length > 0,            'Dijkstra finds a path');
+assert(dPath[0] === start,          'Path starts at start');
+assert(dPath[dPath.length-1] === end, 'Path ends at end');
+assert(dVisited.length > 0,         'visitedOrder is non-empty');
+info(`Dijkstra: path length ${dPath.length-1} steps, ${dVisited.length} nodes expanded`);
+
+// Verify path is valid (each step is a passage)
+let pathValid = true;
+for (let i = 0; i < dPath.length - 1; i++) {
+    if (!grid.isPassage(dPath[i], dPath[i+1])) { pathValid = false; break; }
+}
+assert(pathValid, 'Every step in Dijkstra path is a valid passage');
+
+// ── 7. A* Manhattan ──────────────────────────────────────────────────────────
+
+section('7. A* Manhattan');
+
+const astarMan = new AStarManhattan();
+const { path: manPath, visitedOrder: manVisited } = astarMan.findPath(grid, start, end);
+assert(manPath.length > 0,                    'A* Manhattan finds a path');
+assert(manPath.length === dPath.length,        `Same optimal length as Dijkstra (${manPath.length-1} steps)`);
+assert(manVisited.length <= dVisited.length,   `A* expands ≤ nodes vs Dijkstra (${manVisited.length} vs ${dVisited.length})`);
+info(`A* Manhattan: ${manPath.length-1} steps, ${manVisited.length} nodes expanded`);
+
+let manValid = true;
+for (let i = 0; i < manPath.length - 1; i++) {
+    if (!grid.isPassage(manPath[i], manPath[i+1])) { manValid = false; break; }
+}
+assert(manValid, 'Every step in A* Manhattan path is a valid passage');
+
+// ── 8. A* Euclidean ──────────────────────────────────────────────────────────
+
+section('8. A* Euclidean');
+
+const astarEuc = new AStarEuclidean();
+const { path: eucPath, visitedOrder: eucVisited } = astarEuc.findPath(grid, start, end);
+assert(eucPath.length > 0,             'A* Euclidean finds a path');
+assert(eucPath.length === dPath.length, `Same optimal length as Dijkstra (${eucPath.length-1} steps)`);
+info(`A* Euclidean: ${eucPath.length-1} steps, ${eucVisited.length} nodes expanded`);
+
+// ── 9. A* Hex ────────────────────────────────────────────────────────────────
+
+section('9. A* Hex (on HexGrid)');
+
+const astarHex = new AStarHex();
+const hStart = posKey(0, 9), hEnd = posKey(9, 0);
+const { path: hexPath, visitedOrder: hexVisited } = astarHex.findPath(hexGrid, hStart, hEnd);
+assert(hexPath.length > 0,                'A* Hex finds a path on HexGrid');
+assert(hexPath[0] === hStart,             'Hex path starts at start');
+assert(hexPath[hexPath.length-1] === hEnd,'Hex path ends at end');
+info(`A* Hex: ${hexPath.length-1} steps, ${hexVisited.length} nodes expanded`);
+
+const dijHex = new Dijkstra();
+const { path: dHexPath, visitedOrder: dHexVisited } = dijHex.findPath(hexGrid, hStart, hEnd);
+assert(hexPath.length === dHexPath.length,           `Hex path optimal (same as Dijkstra: ${hexPath.length-1} steps)`);
+assert(hexVisited.length <= dHexVisited.length,       `A* Hex expands ≤ nodes vs Dijkstra (${hexVisited.length} vs ${dHexVisited.length})`);
+
+// ── 10. Algorithm comparison table ───────────────────────────────────────────
+
+section('10. Algorithm Comparison (seed=42, 10×10 square)');
+
+const algos = [
+    new Dijkstra(),
+    new AStarManhattan(),
+    new AStarEuclidean(),
+];
+
+const rows = [];
+for (const algo of algos) {
+    const { path, visitedOrder } = algo.findPath(grid, start, end);
+    rows.push({ name: algo.name, steps: path.length - 1, expanded: visitedOrder.length });
+}
+pre(rows);
+assert(true, 'Comparison table generated (see above)');
+
+// ── Summary ───────────────────────────────────────────────────────────────────
+
+const sumEl = document.getElementById('summary');
+sumEl.className = failed === 0 ? 'ok' : 'err';
+sumEl.textContent = failed === 0
+    ? `✓ All ${passed} tests passed`
+    : `✗ ${failed} test(s) failed, ${passed} passed`;
+</script>
+</body>
+</html>

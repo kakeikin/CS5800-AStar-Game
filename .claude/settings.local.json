@@ -2,7 +2,34 @@
   "permissions": {
     "allow": [
       "Bash(pip3 install:*)",
-      "Bash(python3 -c \":*)"
+      "Bash(python3 -c \":*)",
+      "WebFetch(domain:api.github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(gh api:*)",
+      "mcp__Claude_Preview__preview_start",
+      "Read(//opt/homebrew/bin/**)",
+      "Read(//Users/jiaxin/anaconda3/**)",
+      "Bash(python3 skills/ui-ux-pro-max/scripts/search.py \"algorithm pathfinding visualizer academic tool educational data\" --design-system -p \"A* Pathfinding Visualizer\" -f markdown)",
+      "Bash(python3 src/ui-ux-pro-max/scripts/search.py \"algorithm pathfinding visualizer academic tool educational data\" --design-system -p \"A* Pathfinding Visualizer\" -f markdown)",
+      "Bash(python3 src/ui-ux-pro-max/scripts/search.py \"claymorphism button toolbar educational\" --domain style -n 3)",
+      "Bash(bash /Users/jiaxin/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/brainstorming/scripts/start-server.sh --project-dir \"/Users/jiaxin/ClaudeProjects/Project Game\")",
+      "Bash(/usr/local/bin/node --version)",
+      "Bash(/opt/homebrew/bin/node --version)",
+      "Bash(nvm use:*)",
+      "Bash(export PATH=\"/opt/homebrew/bin:$PATH\")",
+      "Bash(mdls '/Users/jiaxin/Downloads/Research Poster Template_36x24_Spring 26.pdf')",
+      "WebFetch(domain:brand.northeastern.edu)",
+      "Bash(mkdir -p assets)",
+      "Bash(python3 -c \"import pptx; print\\(pptx.__version__\\)\")",
+      "Bash(wkhtmltopdf --version)",
+      "Bash(python3 generate_pptx.py)",
+      "Bash(python3 -c \"from PIL import Image; print\\(''ok''\\)\")",
+      "Bash(python3 -c \"from playwright.sync_api import sync_playwright; print\\(''''ok''''\\)\")",
+      "Bash(python3 -m playwright install chromium)",
+      "Bash(python3 -:*)",
+      "Bash(python3 build_poster_pptx.py)",
+      "Bash(python3 -c \"from playwright.sync_api import sync_playwright; print\\(''ok''\\)\")"
     ]
   }
 }

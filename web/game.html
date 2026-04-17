@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>The Path of Algorithms</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&family=Crimson+Pro:wght@400;500;600;700&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #e4e8f4;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+  }
+  canvas {
+    display: block;
+    border: 1px solid #c4c8e0;
+    box-shadow: 0 4px 24px rgba(30,50,120,0.10), 0 1px 4px rgba(30,50,120,0.06);
+    border-radius: 6px;
+    cursor: default;
+  }
+</style>
+</head>
+<body>
+<canvas id="game" width="1100" height="720"></canvas>
+
+<script type="module">
+import { setAnimTime }          from './src/renderer.js';
+import { createMenuState }     from './src/states/menuState.js';
+import { createTutorialState } from './src/states/tutorialState.js';
+import { createLayer1State }   from './src/states/layer1State.js';
+import { createLayer2State }   from './src/states/layer2State.js';
+import { createLayer3State }   from './src/states/layer3State.js';
+import { createLayer4State }   from './src/states/layer4State.js';
+import { createCustomState }   from './src/states/customState.js';
+
+// ── Canvas ────────────────────────────────────────────────────────────────────
+const canvas = document.getElementById('game');
+const ctx    = canvas.getContext('2d');
+
+// ── Shared game data ──────────────────────────────────────────────────────────
+const gameData = { tomes: [], completedLevels: [] };
+
+// ── Coming-soon banner state ──────────────────────────────────────────────────
+let bannerMsg   = '';
+let bannerTimer = 0;
+
+// ── State machine ─────────────────────────────────────────────────────────────
+let current = null;
+
+function goTo(name) {
+    const map = { MENU: menu, TUTORIAL: tutorial, MAZE_L1: layer1, MAZE_L2: layer2, MAZE_L3: layer3, MAZE_L4: layer4, CUSTOM: custom };
+    if (map[name]) {
+        current = map[name];
+        current.enter();
+        canvas.style.cursor = name === 'CUSTOM' ? 'crosshair' : 'default';
+    } else if (name === 'MAZE_L5') {
+        bannerMsg = 'Layer 5 — coming soon…'; bannerTimer = 2.5;
+    }
+}
+
+const menu     = createMenuState(ctx, goTo, gameData);
+const tutorial = createTutorialState(ctx, goTo, gameData);
+const layer1   = createLayer1State(ctx, goTo, gameData);
+const layer2   = createLayer2State(ctx, goTo, gameData);
+const layer3   = createLayer3State(ctx, goTo, gameData);
+const layer4   = createLayer4State(ctx, goTo, gameData);
+const custom   = createCustomState(ctx, goTo);
+
+// ── Input ─────────────────────────────────────────────────────────────────────
+window.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { goTo('MENU'); return; }
+    current?.handleKey(e.key);
+});
+
+canvas.addEventListener('mousemove', e => {
+    const [x, y] = _pos(e);
+    current?.handleMouseMove(x, y);
+});
+
+canvas.addEventListener('mousedown', e => {
+    const [x, y] = _pos(e);
+    if (e.button === 0) current?.handleMouseDown ? current.handleMouseDown(x, y) : current?.handleClick(x, y);
+    if (e.button === 2) current?.handleRightClick?.(x, y);
+});
+
+canvas.addEventListener('mouseup', () => current?.handleMouseUp?.());
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+// ── Game loop (single RAF) ────────────────────────────────────────────────────
+let lastTs = 0;
+
+function loop(ts) {
+    const dt = Math.min((ts - lastTs) / 1000, 0.05);
+    lastTs   = ts;
+
+    setAnimTime(ts / 1000);
+    current?.update(dt);
+    current?.draw();
+
+    // Coming-soon banner overlay
+    if (bannerTimer > 0) {
+        bannerTimer -= dt;
+        const alpha = Math.min(1, bannerTimer * 2);
+        ctx.fillStyle    = `rgba(0,0,0,${(alpha * 0.75).toFixed(2)})`;
+        ctx.fillRect(0, 0, 1100, 720);
+        ctx.font         = 'bold 26px Arial, sans-serif';
+        ctx.fillStyle    = `rgba(255,200,80,${alpha.toFixed(2)})`;
+        ctx.textAlign    = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(bannerMsg, 550, 360);
+    }
+
+    requestAnimationFrame(loop);
+}
+
+// ── Boot (wait for fonts so Inter/Fira Code render on first frame) ─────────────
+document.fonts.ready.then(() => {
+    goTo('MENU');
+    requestAnimationFrame(ts => { lastTs = ts; requestAnimationFrame(loop); });
+});
+
+// ── Helper ────────────────────────────────────────────────────────────────────
+function _pos(e) {
+    const r  = canvas.getBoundingClientRect();
+    return [
+        (e.clientX - r.left) * (canvas.width  / r.width),
+        (e.clientY - r.top)  * (canvas.height / r.height),
+    ];
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A* Pathfinding Visualizer — Academic Poster</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400&family=Fira+Code:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+
+:root {
+  --navy:      #1a237e;
+  --navy2:     #283593;
+  --lavender:  #e8eaf6;
+  --lav-mid:   #c5cae9;
+  --page:      #dde1f0;
+  --card:      #ffffff;
+  --text:      #1c1c2e;
+  --muted:     #4a4a6a;
+  --dijk:      #0284c7;
+  --manh:      #059669;
+  --eucl:      #dc6803;
+  --path-col:  #7c3aed;
+  --amber:     #d97706;
+}
+
+body {
+  background: var(--page);
+  display: flex;
+  justify-content: center;
+  padding: 24px;
+  font-family: 'Inter', Arial, sans-serif;
+  color: var(--text);
+}
+
+/* ── POSTER SHELL ──────────────────────────────────────────────────── */
+/* 36×24 inches landscape (3:2 ratio) → 1440×960px at screen scale     */
+.poster {
+  width: 1440px;
+  height: 960px;
+  display: flex;
+  flex-direction: column;
+  background: #f0f2fc;
+  box-shadow: 0 6px 40px rgba(0,0,0,.20);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+/* ── HEADER ────────────────────────────────────────────────────────── */
+header {
+  background: var(--navy);
+  padding: 22px 30px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.hdr-text h1 {
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-size: 50px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: .01em;
+  line-height: 1.1;
+  margin-bottom: 9px;
+}
+.hdr-text .authors {
+  font-size: 15.5px;
+  font-weight: 500;
+  color: #c5cae9;
+  margin-bottom: 4px;
+  letter-spacing: .02em;
+}
+.hdr-text .affil {
+  font-size: 13.5px;
+  font-weight: 400;
+  font-style: italic;
+  color: #9fa8da;
+}
+
+/* NEU logo */
+.neu-logo { flex-shrink: 0; }
+
+/* ── BODY ───────────────────────────────────────────────────────────── */
+.body {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 13px;
+  padding: 13px;
+  flex: 1;                /* fill remaining height inside .poster */
+  min-height: 0;
+  align-items: stretch;
+}
+/* each column stretches to fill body height */
+.body > div {
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ── SECTION CARDS ──────────────────────────────────────────────────── */
+.sec {
+  background: var(--card);
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 1px 5px rgba(26,35,126,.09);
+}
+.sec-hdr {
+  background: var(--lavender);
+  padding: 6px 11px;
+  border-bottom: 2px solid var(--lav-mid);
+}
+.sec-hdr h2 {
+  font-family: 'Inter', sans-serif;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--navy);
+  text-transform: uppercase;
+  letter-spacing: .07em;
+}
+.sec-body {
+  padding: 9px 12px;
+}
+.sec-body p { font-size: 12px; line-height: 1.65; color: var(--muted); }
+.sec-body p + p { margin-top: 7px; }
+
+/* ── ALGORITHM TABLE ────────────────────────────────────────────────── */
+.atbl { width: 100%; border-collapse: collapse; font-size: 11.5px; margin-top: 4px; }
+.atbl th {
+  background: var(--lavender); color: var(--navy);
+  font-weight: 600; padding: 5px 8px; text-align: left;
+  border-bottom: 1px solid var(--lav-mid);
+}
+.atbl td { padding: 5px 8px; border-bottom: 1px solid #f0f0f8; color: var(--muted); }
+.atbl tr:last-child td { border-bottom: none; }
+.atbl .fm { font-family: 'Fira Code', monospace; font-size: 11px; color: var(--navy); }
+.tag { display:inline-block; padding:2px 7px; border-radius:3px; font-size:10px; font-weight:600; }
+.td { background:#e0f2fe; color:var(--dijk); }
+.tm { background:#d1fae5; color:var(--manh); }
+.te { background:#fff7ed; color:var(--eucl); }
+
+/* ── ARCH DIAGRAM ───────────────────────────────────────────────────── */
+.arch { display:flex; flex-direction:column; align-items:center; gap:3px; padding:6px 0; }
+.abox {
+  background: var(--lavender); border: 1.5px solid var(--lav-mid);
+  border-radius: 4px; padding: 5px 16px;
+  font-size: 11px; font-weight: 600; color: var(--navy);
+  text-align: center; min-width: 190px;
+}
+.abox.highlight { background: #c5cae9; }
+.aarr { font-size: 15px; color: var(--navy2); line-height: 1; }
+
+/* ── FEATURES LIST ──────────────────────────────────────────────────── */
+.flist { list-style: none; display: flex; flex-direction: column; gap: 5px; }
+.flist li { display:flex; align-items:flex-start; gap:7px; font-size:11.5px; line-height:1.5; color:var(--muted); }
+.ficon { display:inline-block; width:16px; height:16px; border-radius:3px; flex-shrink:0; margin-top:1px; }
+
+/* ── COLOR LEGEND ───────────────────────────────────────────────────── */
+.cleg { display:grid; grid-template-columns:1fr 1fr; gap:5px 14px; margin-top:5px; }
+.cli { display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--muted); }
+.cdot { width:13px; height:13px; border-radius:2px; flex-shrink:0; }
+
+/* ── CALLOUT ────────────────────────────────────────────────────────── */
+.callout {
+  background: linear-gradient(135deg,#fffbf0,#fff3d0);
+  border-left: 4px solid var(--amber);
+  border-radius: 0 6px 6px 0;
+  padding: 12px 14px;
+}
+.callout-lbl { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.09em; color:var(--amber); margin-bottom:5px; }
+.callout p { font-size:12.5px; font-weight:600; color:#92400e; line-height:1.55; }
+
+/* ── FOOTER ─────────────────────────────────────────────────────────── */
+footer {
+  background: var(--lavender);
+  border-top: 2px solid var(--lav-mid);
+  padding: 9px 20px;
+  display: flex;
+  gap: 40px;
+  align-items: flex-start;
+}
+.ref-block { flex: 1; }
+.ref-lbl { font-size:10.5px; font-weight:700; color:var(--navy); text-transform:uppercase; letter-spacing:.05em; margin-bottom:3px; }
+footer ol { list-style:decimal; padding-left:17px; }
+footer li { font-size:10px; color:var(--muted); line-height:1.55; }
+
+/* ── PRINT ───────────────────────────────────────────────────────────── */
+@media print {
+  /* 36in × 24in at 96dpi = 3456px × 2304px; poster is 1440×960px; scale = 2.4 */
+  @page { size: 36in 24in landscape; margin: 0; }
+  html {
+    zoom: 2.4;
+  }
+  body {
+    padding: 0;
+    margin: 0;
+    background: white;
+    width: 1440px;
+    height: 960px;
+    overflow: hidden;
+  }
+  .poster {
+    width: 1440px;
+    height: 960px;
+    box-shadow: none;
+    border-radius: 0;
+    overflow: hidden;
+  }
+  /* Ensure canvas colours print */
+  canvas { display: block; }
+}
+</style>
+</head>
+<body>
+<div class="poster">
+
+<!-- ════════════════════════════════ HEADER ════════════════════════════════ -->
+<header>
+  <div class="hdr-text">
+    <h1>Interactive A* Pathfinding Puzzle Game</h1>
+    <div class="authors">Demonstrate how different heuristics affect A* search efficiency while preserving path optimality in grids with varying terrain costs</div>
+    <div class="affil">Team member: Jiaxin Jia &nbsp;&nbsp;·&nbsp;&nbsp; Xiaoyuan Lu &nbsp;&nbsp;·&nbsp;&nbsp; Xinyuan Fan &nbsp;·&nbsp; Professor Lama Hamandi &nbsp;·&nbsp; Khoury College of Computer Sciences &nbsp;·&nbsp; Northeastern University</div>
+  </div>
+
+  <!-- NEU Logo — official image, white background removed -->
+  <div class="neu-logo">
+    <img src="assets/neu-logo-white-text.png" alt="Northeastern University" style="height:78px;width:auto;display:block;">
+  </div>
+</header>
+
+<!-- ════════════════════════════════ BODY ══════════════════════════════════ -->
+<div class="body">
+
+<!-- ╔══════════════════ LEFT COLUMN ══════════════════╗ -->
+<div style="display:flex;flex-direction:column;gap:13px;">
+
+  <!-- Abstract -->
+  <div class="sec" style="flex:0 0 auto;">
+    <div class="sec-hdr"><h2>Abstract</h2></div>
+    <div class="sec-body">
+      <p>An interactive browser-based tool running Dijkstra, A* Manhattan, and A* Euclidean side-by-side on weighted grids. Users paint walls (∞), grass (×2), and swamps (×5), then watch all three execute with per-cell f(n) cost overlays. Benchmarks confirm A* Manhattan cuts node expansions by ~50% vs Dijkstra on identical paths.</p>
+    </div>
+  </div>
+
+  <!-- Background & Motivation -->
+  <div class="sec" style="flex:0 0 auto;">
+    <div class="sec-hdr"><h2>Background &amp; Motivation</h2></div>
+    <div class="sec-body">
+      <p>Algorithm trade-offs are hard to internalize from pseudocode alone — the contrast between uninformed and informed search only becomes intuitive when you can watch both exploration frontiers side by side in real time.</p>
+      <p style="margin-top:7px;">Most tools show one algorithm at a time on uniform-cost grids, making direct comparison impossible. This project closes that gap: Dijkstra, A* Manhattan, and A* Euclidean run simultaneously on shared weighted grids, with step-by-step replay and per-cell f/g/h overlays that reveal exactly why each algorithm expands each node.</p>
+      <p style="margin-top:7px;">Student feedback during development confirmed the core gap: watching A*'s frontier stay focused while Dijkstra fans out in all directions builds intuition no static textbook diagram can replicate.</p>
+    </div>
+  </div>
+
+  <!-- Algorithm Overview -->
+  <div class="sec" style="flex:0 0 auto;">
+    <div class="sec-hdr"><h2>Algorithm Overview</h2></div>
+    <div class="sec-body">
+      <table class="atbl">
+        <thead>
+          <tr>
+            <th>Algorithm</th>
+            <th>Heuristic h(n)</th>
+            <th>Best suited for</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="tag td">Dijkstra</span></td>
+            <td class="fm">0 &nbsp;(uninformed)</td>
+            <td style="font-size:11px;">Baseline; always optimal</td>
+          </tr>
+          <tr>
+            <td><span class="tag tm">A* Manhattan</span></td>
+            <td class="fm">|Δx| + |Δy|</td>
+            <td style="font-size:11px;">Square 4-way grids</td>
+          </tr>
+          <tr>
+            <td><span class="tag te">A* Euclidean</span></td>
+            <td class="fm">√(Δx² + Δy²)</td>
+            <td style="font-size:11px;">Any grid geometry</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Conclusion & Future Work -->
+  <div class="sec" style="flex:1;">
+    <div class="sec-hdr"><h2>Conclusion &amp; Future Work</h2></div>
+    <div class="sec-body">
+      <p>The visualizer confirms heuristic choice has a measurable impact on efficiency. Learners build intuition through direct manipulation, not passive reading. Planned: hex grid support, bidirectional A*, CSV export.</p>
+    </div>
+  </div>
+
+</div><!-- /left -->
+
+<!-- ╔══════════════════ MIDDLE COLUMN ════════════════╗ -->
+<div style="display:flex;flex-direction:column;gap:8px;">
+
+  <!-- Tool User Flow + System Architecture (combined) -->
+  <div class="sec" style="flex:1.35;">
+    <div class="sec-hdr"><h2>Tool User Flow &amp; System Architecture</h2></div>
+    <div class="sec-body" style="padding:4px 10px;">
+      <div style="display:flex;gap:10px;align-items:stretch;">
+
+        <!-- LEFT: Tool User Flow flowchart -->
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:0;">
+          <div style="font-size:9px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">User Flow</div>
+          <div style="align-self:center;background:var(--navy);color:#fff;padding:2px 12px;border-radius:20px;font-size:9.5px;font-weight:700;letter-spacing:.06em;">START</div>
+          <div style="align-self:center;width:2px;flex:1;min-height:4px;background:var(--lav-mid);"></div>
+          <div style="align-self:stretch;background:var(--lavender);border:1.5px solid var(--lav-mid);border-radius:16px;padding:3px 10px;font-size:10px;font-weight:600;color:var(--navy);text-align:center;">Configure Grid &amp; Paint Terrain</div>
+          <div style="align-self:center;width:2px;flex:1;min-height:4px;background:var(--lav-mid);"></div>
+          <div style="display:flex;align-items:center;gap:5px;align-self:stretch;">
+            <div style="flex:1;background:var(--lavender);border:1.5px solid var(--lav-mid);border-radius:16px;padding:3px 8px;font-size:10px;font-weight:600;color:var(--navy);text-align:center;">Choose Speed &amp; Run</div>
+            <div style="font-size:8px;color:var(--muted);line-height:1.3;white-space:nowrap;">Slow·Med<br>Fast·Max</div>
+          </div>
+          <div style="align-self:center;width:2px;flex:1;min-height:4px;background:var(--lav-mid);"></div>
+          <div style="align-self:stretch;background:#c5cae9;border:1.5px solid #9fa8da;border-radius:16px;padding:3px 10px;font-size:10px;font-weight:700;color:var(--navy);text-align:center;">Watch 3 Algorithms Live</div>
+          <div style="align-self:center;width:2px;flex:1;min-height:4px;background:var(--lav-mid);"></div>
+          <div style="align-self:stretch;background:var(--lavender);border:1.5px solid var(--lav-mid);border-radius:16px;padding:3px 10px;font-size:10px;font-weight:600;color:var(--navy);text-align:center;">Compare Nodes &amp; Path</div>
+          <div style="align-self:center;width:2px;flex:1;min-height:4px;background:var(--lav-mid);"></div>
+          <div style="align-self:center;border:1.5px dashed var(--lav-mid);border-radius:8px;padding:2px 8px;font-size:8.5px;color:var(--muted);font-style:italic;">↺ Adjust &amp; Re-run</div>
+        </div>
+
+        <!-- Divider -->
+        <div style="width:1px;background:var(--lav-mid);align-self:stretch;"></div>
+
+        <!-- RIGHT: System Architecture -->
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:9px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">Architecture</div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+            <div style="background:var(--lavender);border:1.5px solid var(--lav-mid);border-radius:4px;padding:3px 8px;font-size:10px;font-weight:600;color:var(--navy);text-align:center;width:100%;">User Input (Mouse / KB)</div>
+            <div style="font-size:11px;color:var(--navy2);">↓</div>
+            <div style="background:var(--lavender);border:1.5px solid var(--lav-mid);border-radius:4px;padding:3px 8px;font-size:10px;font-weight:600;color:var(--navy);text-align:center;width:100%;">Grid State Manager</div>
+            <div style="font-size:11px;color:var(--navy2);">↓</div>
+            <div style="background:#c5cae9;border:1.5px solid #9fa8da;border-radius:4px;padding:3px 8px;font-size:10px;font-weight:700;color:var(--navy);text-align:center;width:100%;">Algorithm Engine ×3<br><span style="font-size:9px;font-weight:400;">(Strategy Pattern)</span></div>
+            <div style="font-size:11px;color:var(--navy2);">↓</div>
+            <div style="background:var(--lavender);border:1.5px solid var(--lav-mid);border-radius:4px;padding:3px 8px;font-size:10px;font-weight:600;color:var(--navy);text-align:center;width:100%;">Step Iterator / Scheduler</div>
+            <div style="font-size:11px;color:var(--navy2);">↓</div>
+            <div style="background:var(--lavender);border:1.5px solid var(--lav-mid);border-radius:4px;padding:3px 8px;font-size:10px;font-weight:600;color:var(--navy);text-align:center;width:100%;">Canvas Renderer (RAF)</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Interactive Features -->
+  <div class="sec" style="flex:1.7;">
+    <div class="sec-hdr"><h2>Interactive Features</h2></div>
+    <div class="sec-body" style="padding:3px 12px;">
+      <ul class="flist" style="gap:1px;font-size:9.5px;line-height:1.3;">
+        <li>
+          <span class="ficon" style="background:#374151;"></span>
+          <div><strong style="color:var(--text);">Terrain Painting</strong> — Drag to paint Walls (∞), Grass (×2), or Swamp (×5) across all three panels; right-click to erase</div>
+        </li>
+        <li>
+          <span class="ficon" style="background:#16a34a;"></span>
+          <div><strong style="color:var(--text);">Draggable Endpoints</strong> — Reposition Start / Goal at any time; re-runs automatically on next playback</div>
+        </li>
+        <li>
+          <span class="ficon" style="background:#6366f1;"></span>
+          <div><strong style="color:var(--text);">Maze &amp; Preset Generator</strong> — Hand-crafted Maze, random scatter, or barrier presets — one toolbar click</div>
+        </li>
+        <li>
+          <span class="ficon" style="background:#7c3aed;"></span>
+          <div><strong style="color:var(--text);">Playback Controls</strong> — Run / Pause / Step; four speeds from Slow (300 ms) to Max (full-batch, no delay)</div>
+        </li>
+        <li>
+          <span class="ficon" style="background:#d97706;"></span>
+          <div><strong style="color:var(--text);">f(n) Overlay</strong> — Toggle per-cell f(n) cost overlays over each panel for deep algorithmic inspection</div>
+        </li>
+        <li>
+          <span class="ficon" style="background:#dc2626;"></span>
+          <div><strong style="color:var(--text);">Live Metrics</strong> — Nodes-expanded counter and path length updated live</div>
+        </li>
+        <li>
+          <span class="ficon" style="background:#b91c1c;"></span>
+          <div><strong style="color:var(--text);">Layer 1 — The Trap</strong> — Max 5 walls; craft barriers to lure A* (Manhattan) into a local-optimum dead end</div>
+        </li>
+        <li>
+          <span class="ficon" style="background:#db2777;"></span>
+          <div><strong style="color:var(--text);">Layer 2 — The Swamp</strong> — Pink brush predicts your path; system compares Predict Cost vs A* Path Cost and gives a verdict</div>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Visualization Design -->
+  <div class="sec" style="flex:0.9;">
+    <div class="sec-hdr"><h2>Visualization Design &amp; Color System</h2></div>
+    <div class="sec-body" style="padding:4px 12px;">
+      <p style="margin-bottom:5px;">Purpose-built palette encodes cell states at a glance:</p>
+      <div class="cleg" style="grid-template-columns:1fr 1fr 1fr 1fr;gap:3px 8px;">
+        <div class="cli"><div class="cdot" style="background:#16a34a;"></div> Start (S)</div>
+        <div class="cli"><div class="cdot" style="background:#dc2626;"></div> Goal (G)</div>
+        <div class="cli"><div class="cdot" style="background:#93c5fd;"></div> Open set</div>
+        <div class="cli"><div class="cdot" style="background:#fed7aa;"></div> Expanded</div>
+        <div class="cli"><div class="cdot" style="background:#7c3aed;"></div> Optimal path</div>
+        <div class="cli"><div class="cdot" style="background:#78c34b;"></div> Grass (×2)</div>
+        <div class="cli"><div class="cdot" style="background:#825a28;"></div> Swamp (×5)</div>
+        <div class="cli"><div class="cdot" style="background:#262630;"></div> Wall (∞)</div>
+      </div>
+      <p style="margin-top:4px;font-size:10px;line-height:1.4;">Algorithm panels share Start, Goal and Path colors so results are directly comparable. Open-set blue reveals the live search frontier; expanded orange marks already-processed nodes. Terrain colors are visually distinct from algorithm-state colors to prevent misreading. A dynamic sine-wave neon pulsing effect highlights optimal paths for visual clarity.</p>
+    </div>
+  </div>
+
+</div><!-- /middle -->
+
+<!-- ╔══════════════════ RIGHT COLUMN ═════════════════╗ -->
+<div style="display:flex;flex-direction:column;gap:13px;">
+
+  <!-- Tool Demo Mockup -->
+  <div class="sec" style="flex:1.6;">
+    <div class="sec-hdr"><h2>Tool Demo — Three Algorithms Running in Parallel</h2></div>
+    <div class="sec-body" style="padding:5px 8px 6px;">
+      <div style="background:#e4e8f4;border:1px solid #c4c8e0;border-radius:4px;overflow:hidden;">
+        <canvas id="demo" width="416" height="210" style="display:block;width:100%;"></canvas>
+      </div>
+      <p style="margin-top:5px;font-size:10.5px;color:var(--muted);text-align:center;font-style:italic;">
+        Dijkstra (left) expands more nodes than A* Manhattan (centre) and A* Euclidean (right); all three find the same optimal path (violet).
+      </p>
+    </div>
+  </div>
+
+  <!-- Performance Results -->
+  <div class="sec" style="flex:1.4;">
+    <div class="sec-hdr"><h2>Performance Results &amp; Benchmark</h2></div>
+    <div class="sec-body">
+      <p style="font-size:11.5px;">Benchmark on a 20×20 square grid (seed = 42). All three algorithms return the <strong>same optimal path of length 26</strong>. Node expansion is the key efficiency differentiator:</p>
+
+      <!-- Bar chart -->
+      <div style="margin-top:6px;padding:0 4px;">
+        <div style="display:flex;align-items:flex-end;gap:12px;height:42px;">
+          <!-- Dijkstra: 368/368 = 100% → 36px -->
+          <div style="flex:1;position:relative;height:36px;background:var(--dijk);border-radius:3px 3px 0 0;">
+            <div style="position:absolute;bottom:calc(100% + 2px);width:100%;text-align:center;font-size:12px;font-weight:700;color:var(--dijk);">368</div>
+          </div>
+          <!-- A* Manhattan: 183/368 = 50% → 18px -->
+          <div style="flex:1;position:relative;height:18px;background:var(--manh);border-radius:3px 3px 0 0;">
+            <div style="position:absolute;bottom:calc(100% + 2px);width:100%;text-align:center;font-size:12px;font-weight:700;color:var(--manh);">183</div>
+          </div>
+          <!-- A* Euclidean: 233/368 = 63% → 23px -->
+          <div style="flex:1;position:relative;height:23px;background:var(--eucl);border-radius:3px 3px 0 0;">
+            <div style="position:absolute;bottom:calc(100% + 2px);width:100%;text-align:center;font-size:12px;font-weight:700;color:var(--eucl);">233</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;border-top:1.5px solid var(--lav-mid);padding-top:5px;">
+          <div style="flex:1;text-align:center;font-size:10.5px;font-weight:600;color:var(--dijk);">Dijkstra</div>
+          <div style="flex:1;text-align:center;font-size:10.5px;font-weight:600;color:var(--manh);">A* Manhattan</div>
+          <div style="flex:1;text-align:center;font-size:10.5px;font-weight:600;color:var(--eucl);">A* Euclidean</div>
+        </div>
+        <div style="text-align:center;font-size:10px;color:#999;margin-top:3px;font-style:italic;">Nodes Expanded &nbsp;(lower = more efficient)</div>
+      </div>
+
+      <!-- Summary table -->
+      <div style="margin-top:10px;border-radius:4px;overflow:hidden;border:1px solid #e4e4f4;">
+        <table style="width:100%;border-collapse:collapse;font-size:11.5px;">
+          <thead>
+            <tr style="background:var(--lavender);">
+              <th style="padding:4px 8px;text-align:left;color:var(--navy);font-weight:600;">Algorithm</th>
+              <th style="padding:4px 8px;text-align:center;color:var(--navy);font-weight:600;">Path Length</th>
+              <th style="padding:4px 8px;text-align:center;color:var(--navy);font-weight:600;">Nodes Expanded</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-top:1px solid #f0f0f8;">
+              <td style="padding:3px 8px;color:var(--dijk);font-weight:500;">Dijkstra</td>
+              <td style="padding:3px 8px;text-align:center;color:var(--muted);">26</td>
+              <td style="padding:3px 8px;text-align:center;color:var(--muted);">368</td>
+            </tr>
+            <tr style="border-top:1px solid #f0f0f8;background:#f9fffb;">
+              <td style="padding:3px 8px;color:var(--manh);font-weight:500;">A* Manhattan</td>
+              <td style="padding:3px 8px;text-align:center;color:var(--muted);">26</td>
+              <td style="padding:3px 8px;text-align:center;font-weight:700;color:var(--manh);">183 &nbsp;<span style="font-size:10px;font-weight:400;color:var(--manh);">↓ 50%</span></td>
+            </tr>
+            <tr style="border-top:1px solid #f0f0f8;">
+              <td style="padding:3px 8px;color:var(--eucl);font-weight:500;">A* Euclidean</td>
+              <td style="padding:3px 8px;text-align:center;color:var(--muted);">26</td>
+              <td style="padding:3px 8px;text-align:center;font-weight:700;color:var(--eucl);">233 &nbsp;<span style="font-size:10px;font-weight:400;color:var(--eucl);">↓ 37%</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Key Insight callout -->
+  <div class="callout">
+    <div class="callout-lbl">Key Insight</div>
+    <p>A* Manhattan reduces node expansions by ~50% vs Dijkstra; A* Euclidean by ~37% — both always guarantee the same optimal path, a direct measurable benefit of informed search.</p>
+  </div>
+
+</div><!-- /right -->
+
+</div><!-- /body -->
+
+<!-- ════════════════════════════════ FOOTER ════════════════════════════════ -->
+<footer>
+  <div class="ref-block">
+    <div class="ref-lbl">References</div>
+    <ol>
+      <li>Hart, P. E., Nilsson, N. J., &amp; Raphael, B. (1968). A formal basis for the heuristic determination of minimum cost paths. <em>IEEE Transactions on Systems Science and Cybernetics</em>, 4(2), 100–107.</li>
+      <li>Russell, S., &amp; Norvig, P. (2020). <em>Artificial Intelligence: A Modern Approach</em> (4th ed.). Pearson. Ch. 3: Solving Problems by Searching.</li>
+    </ol>
+  </div>
+</footer>
+
+</div><!-- /poster -->
+
+<!-- ════════════════════════════════ CANVAS SCRIPT ═════════════════════════ -->
+<script>
+document.fonts.ready.then(() => {
+  const canvas = document.getElementById('demo');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const CW = canvas.width, CH = canvas.height;
+
+  // ── Cell-type constants ────────────────────────────────────────────
+  const E=0, W=1, X=2, O=3, P=4, S=5, G=6, GR=7, SW=8;
+
+  // ── Colors ─────────────────────────────────────────────────────────
+  const C = {
+    [E]:'#f0f0f2', [W]:'#262630', [X]:'#fed7aa',
+    [O]:'#93c5fd', [P]:'#7c3aed', [S]:'#16a34a',
+    [G]:'#dc2626', [GR]:'#78c34b', [SW]:'#825a28',
+  };
+
+  // ── Grid data: tall vertical wall at col5 rows 1-8 ────────────────
+  // S=(9,0) bottom-left, G=(9,9) bottom-right
+  // Optimal path: col0 up to row0 → row0 right → col9 down to row9
+
+  // Dijkstra — massive exploration, almost entire accessible grid
+  const dGrid = [
+    [P, P, P, P, P, P, P, P, P, P],
+    [P, X, X, X, X, W, X, X, X, P],
+    [P, X, X, X, X, W, X, X, O, P],
+    [P, X, X, X, X, W, X, O, O, P],
+    [P, X, X, X, X, W, O, O, O, P],
+    [P, X, X, X, X, W, O, O, O, P],
+    [P, X, X, X, X, W, O, O, O, P],
+    [P, X, X, X, X, W, O, O, O, P],
+    [P, X, X, X, X, X, O, O, O, P],
+    [S, X, X, X, X, X, O, O, O, G],
+  ];
+
+  // A* Manhattan — narrow focused band near left column
+  const mGrid = [
+    [P, P, P, P, P, P, P, P, P, P],
+    [P, X, X, O, O, W, O, O, O, P],
+    [P, X, O, O, O, W, O, O, O, P],
+    [P, X, O, O, O, W, O, O, O, P],
+    [P, X, O, O, O, W, O, O, O, P],
+    [P, X, O, O, O, W, O, O, O, P],
+    [P, X, O, O, O, W, O, O, O, P],
+    [P, X, O, O, O, W, O, O, O, P],
+    [P, X, O, O, O, O, O, O, O, P],
+    [S, O, O, O, O, O, O, O, O, G],
+  ];
+
+  // A* Euclidean — wider diagonal spread, more than Manhattan
+  const eGrid = [
+    [P, P, P, P, P, P, P, P, P, P],
+    [P, X, X, X, O, W, O, O, O, P],
+    [P, X, X, O, O, W, O, O, O, P],
+    [P, X, X, O, O, W, O, O, O, P],
+    [P, X, X, O, O, W, O, O, O, P],
+    [P, X, O, O, O, W, O, O, O, P],
+    [P, X, O, O, O, W, O, O, O, P],
+    [P, X, O, O, O, W, O, O, O, P],
+    [P, X, X, O, O, O, O, O, O, P],
+    [S, O, O, O, O, O, O, O, O, G],
+  ];
+
+  // ── Layout ─────────────────────────────────────────────────────────
+  const TOOL_H  = 27;
+  const CTRL_H  = 19;
+  const PAD     = 6;
+  const PHDR_H  = 14;
+  const LEG_H   = 20;
+  const COLS    = 10;
+  const PANEL_W = Math.floor((CW - PAD * 4) / 3);
+  const GRID_TOP = TOOL_H + CTRL_H + PAD + PHDR_H;
+  const GRID_H   = CH - GRID_TOP - LEG_H - PAD;
+  const CELL     = Math.floor(Math.min(PANEL_W - 4, GRID_H) / COLS);
+
+  function pX(i) { return PAD + i * (PANEL_W + PAD); }
+
+  // ── BG ─────────────────────────────────────────────────────────────
+  ctx.fillStyle = '#e4e8f4';
+  ctx.fillRect(0, 0, CW, CH);
+
+  // ── Toolbar ────────────────────────────────────────────────────────
+  const tg = ctx.createLinearGradient(0, 0, 0, TOOL_H);
+  tg.addColorStop(0, '#59708c'); tg.addColorStop(1, '#8aa4bc');
+  ctx.fillStyle = tg;
+  ctx.fillRect(0, 0, CW, TOOL_H);
+
+  const tools = [
+    {l:'Walls', c:'#374151', sel:true}, {l:'Erase', c:'#e5e7eb', sel:false},
+    {l:'Grass', c:'#78c34b', sel:false}, {l:'Swamp', c:'#825a28', sel:false},
+    {l:'Start', c:'#16a34a', sel:false}, {l:'Goal',  c:'#dc2626', sel:false},
+    {l:'Predict',c:'#f59e0b',sel:false}, {l:'Maze',  c:'#6366f1', sel:false},
+    {l:'Barrier',c:'#374151',sel:false}, {l:'Random',c:'#8b5cf6', sel:false},
+  ];
+  const BW = 40, BH = 21, BY = 3;
+  tools.forEach((t, i) => {
+    const bx = 5 + i * (BW + 2);
+    ctx.fillStyle = t.sel ? '#1e3a8a' : 'rgba(255,255,255,.85)';
+    rr(ctx, bx, BY, BW, BH, 3); ctx.fill();
+    ctx.beginPath();
+    ctx.arc(bx + 7, BY + BH/2, 3.5, 0, Math.PI*2);
+    ctx.fillStyle = t.c; ctx.fill();
+    ctx.fillStyle = t.sel ? '#fff' : '#374151';
+    ctx.font = '500 7.5px Inter,Arial'; ctx.textAlign = 'center';
+    ctx.fillText(t.l, bx + BW/2 + 4, BY + BH/2 + 3);
+  });
+  ctx.fillStyle = 'rgba(255,255,255,.65)';
+  ctx.font = '600 9.5px Inter,Arial'; ctx.textAlign = 'right';
+  ctx.fillText('A* Pathfinding Visualizer  ·  CS5800', CW - 8, TOOL_H/2 + 3);
+
+  // ── Control bar ────────────────────────────────────────────────────
+  ctx.fillStyle = '#cdd5e4';
+  ctx.fillRect(0, TOOL_H, CW, CTRL_H);
+  const ctrls = ['Run ▶ [R]','‖ Pause','Step →','Reset','Clear [C]','Slow','Med','Fast','Max','f(n) vals'];
+  const CW2 = 44;
+  ctrls.forEach((c, i) => {
+    const cx2 = 5 + i * (CW2 + 2);
+    const active = c === 'Med';
+    ctx.fillStyle = active ? '#1e3a8a' : 'rgba(255,255,255,.8)';
+    rr(ctx, cx2, TOOL_H + 2, CW2, CTRL_H - 4, 2); ctx.fill();
+    ctx.fillStyle = active ? '#fff' : '#374151';
+    ctx.font = '500 7px Inter,Arial'; ctx.textAlign = 'center';
+    ctx.fillText(c, cx2 + CW2/2, TOOL_H + CTRL_H/2 + 3);
+  });
+
+  // ── Three panels ───────────────────────────────────────────────────
+  const algColors = ['#0284c7','#059669','#dc6803'];
+  const algLabels = ['Dijkstra','A* Manhattan','A* Euclidean'];
+  const grids     = [dGrid, mGrid, eGrid];
+
+  grids.forEach((grid, idx) => {
+    const px = pX(idx);
+    const pyTop = TOOL_H + CTRL_H + PAD;
+
+    // Card bg
+    ctx.fillStyle = '#fff';
+    rr(ctx, px, pyTop, PANEL_W, CH - pyTop - LEG_H - PAD/2, 4); ctx.fill();
+    ctx.strokeStyle = '#c8d0e8'; ctx.lineWidth = 1; ctx.stroke();
+
+    // Header strip
+    ctx.fillStyle = algColors[idx];
+    rr(ctx, px, pyTop, PANEL_W, PHDR_H, 4); ctx.fill();
+    ctx.fillRect(px, pyTop + 6, PANEL_W, PHDR_H - 6);
+
+    ctx.fillStyle = '#fff';
+    ctx.font = '600 8.5px Inter,Arial'; ctx.textAlign = 'left';
+    ctx.fillText(algLabels[idx], px + 5, pyTop + 10);
+
+    // Expanded count
+    let xc = 0;
+    grid.forEach(row => row.forEach(v => { if (v === X) xc++; }));
+    ctx.font = '500 7.5px Inter,Arial'; ctx.textAlign = 'right';
+    ctx.fillText(`exp: ${xc}`, px + PANEL_W - 4, pyTop + 10);
+
+    // Grid
+    const gx = px + Math.floor((PANEL_W - CELL * COLS) / 2);
+    const gy = pyTop + PHDR_H + 2;
+    drawGrid(grid, gx, gy);
+  });
+
+  // ── Legend ─────────────────────────────────────────────────────────
+  const legY = CH - LEG_H;
+  ctx.fillStyle = '#d0d7eb';
+  ctx.fillRect(0, legY, CW, LEG_H);
+  const litems = [
+    {l:'Start',c:C[S]},{l:'Goal',c:C[G]},{l:'Open set',c:C[O]},
+    {l:'Expanded',c:C[X]},{l:'Optimal path',c:C[P]},
+    {l:'Grass (×2)',c:C[GR]},{l:'Swamp (×5)',c:C[SW]},{l:'Wall',c:C[W]},
+  ];
+  let lx2 = 8;
+  ctx.font = '7.5px Inter,Arial';
+  litems.forEach(it => {
+    ctx.fillStyle = it.c;
+    ctx.fillRect(lx2, legY + 5, 9, 9);
+    ctx.strokeStyle = 'rgba(0,0,0,.15)'; ctx.lineWidth = .5;
+    ctx.strokeRect(lx2, legY + 5, 9, 9);
+    ctx.fillStyle = '#374151'; ctx.textAlign = 'left';
+    ctx.fillText(it.l, lx2 + 12, legY + 13);
+    lx2 += ctx.measureText(it.l).width + 15;
+  });
+
+  // ── Helpers ────────────────────────────────────────────────────────
+  function drawGrid(grid, gx, gy) {
+    for (let r = 0; r < COLS; r++) {
+      for (let c2 = 0; c2 < COLS; c2++) {
+        const x = gx + c2 * CELL, y = gy + r * CELL;
+        const t = grid[r][c2];
+        ctx.fillStyle = C[t] || C[E];
+        ctx.fillRect(x, y, CELL, CELL);
+        // grid lines
+        ctx.strokeStyle = 'rgba(150,160,190,.4)';
+        ctx.lineWidth = .4; ctx.strokeRect(x, y, CELL, CELL);
+        // path glow
+        if (t === P) {
+          ctx.strokeStyle = 'rgba(124,58,237,.5)';
+          ctx.lineWidth = .8; ctx.strokeRect(x+.5, y+.5, CELL-1, CELL-1);
+        }
+        // S/G labels
+        if (t === S || t === G) {
+          ctx.fillStyle = '#fff';
+          const fs = Math.max(7, CELL - 5);
+          ctx.font = `bold ${fs}px Inter,Arial`;
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText(t === S ? 'S' : 'G', x + CELL/2, y + CELL/2);
+          ctx.textBaseline = 'alphabetic';
+        }
+      }
+    }
+  }
+
+  function rr(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x+r, y);
+    ctx.lineTo(x+w-r, y); ctx.quadraticCurveTo(x+w, y, x+w, y+r);
+    ctx.lineTo(x+w, y+h-r); ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+    ctx.lineTo(x+r, y+h); ctx.quadraticCurveTo(x, y+h, x, y+h-r);
+    ctx.lineTo(x, y+r); ctx.quadraticCurveTo(x, y, x+r, y);
+    ctx.closePath();
+  }
+});
+</script>
+</body>
+</html>
